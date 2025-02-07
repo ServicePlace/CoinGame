@@ -19,6 +19,21 @@ interface Platform {
   height: number;
 }
 
+interface EthernetCord {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface Whale {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isVisible: boolean;
+}
+
 // Reduced gravity for space-like feel
 const GRAVITY = 0.3;
 const INITIAL_JUMP_FORCE = -10;
@@ -32,6 +47,19 @@ const PLATFORMS: Platform[] = [
   { x: 300, y: 300, width: 200, height: 20 },
   { x: 100, y: 200, width: 200, height: 20 },
 ];
+
+const ETHERNET_CORDS: EthernetCord[] = [
+  { x: 150, y: 350, width: 100, height: 10 },
+  { x: 450, y: 250, width: 100, height: 10 },
+];
+
+const WHALE: Whale = {
+  x: 600,
+  y: 100,
+  width: 200,
+  height: 100,
+  isVisible: false,
+};
 
 export function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -47,6 +75,121 @@ export function Game() {
     isJumping: false,
     jumpTime: 0,
   });
+  const [ethernetCords, setEthernetCords] = useState<EthernetCord[]>(ETHERNET_CORDS);
+  const [whale, setWhale] = useState<Whale>(WHALE);
+
+  // ...existing code...
+
+useEffect(() => {
+  const canvas = canvasRef.current;
+  const context = canvas?.getContext('2d');
+
+  const gameLoop = () => {
+    if (context && canvas) {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw platforms
+      PLATFORMS.forEach(platform => {
+        context.fillStyle = 'brown';
+        context.fillRect(platform.x, platform.y, platform.width, platform.height);
+      });
+
+      // Draw Ethernet cords
+      ethernetCords.forEach(cord => {
+        context.fillStyle = 'blue';
+        context.fillRect(cord.x, cord.y, cord.width, cord.height);
+      });
+
+      // Draw whale if visible
+      if (whale.isVisible) {
+        context.fillStyle = 'gray';
+        context.fillRect(whale.x, whale.y, whale.width, whale.height);
+      }
+
+      // Draw character
+      if (character) {
+        context.drawImage(character, gameObjectRef.current.x, gameObjectRef.current.y, gameObjectRef.current.width, gameObjectRef.current.height);
+      }
+
+      // Update game object position
+      const gameObject = gameObjectRef.current;
+      gameObject.velocityY += GRAVITY;
+      gameObject.x += gameObject.velocityX;
+      gameObject.y += gameObject.velocityY;
+
+      // Collision detection with platforms
+      PLATFORMS.forEach(platform => {
+        if (gameObject.x < platform.x + platform.width &&
+            gameObject.x + gameObject.width > platform.x &&
+            gameObject.y < platform.y + platform.height &&
+            gameObject.y + gameObject.height > platform.y) {
+          gameObject.y = platform.y - gameObject.height;
+          gameObject.velocityY = 0;
+          gameObject.isJumping = false;
+        }
+      });
+
+      // Collision detection with Ethernet cords
+      ethernetCords.forEach(cord => {
+        if (gameObject.x < cord.x + cord.width &&
+            gameObject.x + gameObject.width > cord.x &&
+            gameObject.y < cord.y + cord.height &&
+            gameObject.y + gameObject.height > cord.y) {
+          // Reset game if collision with Ethernet cord
+          gameObject.x = 50;
+          gameObject.y = 200;
+          gameObject.velocityY = 0;
+          gameObject.velocityX = 0;
+          gameObject.isJumping = false;
+          gameObject.jumpTime = 0;
+        }
+      });
+
+      // Collision detection with whale
+      if (whale.isVisible &&
+          gameObject.x < whale.x + whale.width &&
+          gameObject.x + gameObject.width > whale.x &&
+          gameObject.y < whale.y + whale.height &&
+          gameObject.y + gameObject.height > whale.y) {
+        // Allow jumping on top of the whale
+        gameObject.y = whale.y - gameObject.height;
+        gameObject.velocityY = 0;
+        gameObject.isJumping = false;
+      }
+
+      // Apply friction
+      gameObject.velocityX *= FRICTION;
+
+      // Update game object reference
+      gameObjectRef.current = gameObject;
+    }
+
+    gameLoopRef.current = requestAnimationFrame(gameLoop);
+  };
+
+  gameLoopRef.current = requestAnimationFrame(gameLoop);
+
+  return () => {
+    if (gameLoopRef.current) {
+      cancelAnimationFrame(gameLoopRef.current);
+    }
+  };
+}, [character, ethernetCords, whale]);
+
+// ...existing code...
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setWhale(prevWhale => ({
+      ...prevWhale,
+      isVisible: !prevWhale.isVisible,
+    }));
+  }, 10000); // Toggle whale visibility every 10 seconds
+
+  return () => clearInterval(interval);
+}, []);
+
+// ...existing code...
 
   const [keys, setKeys] = useState<{ [key: string]: boolean }>({});
 
